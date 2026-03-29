@@ -1,0 +1,75 @@
+name: DexcomWidget
+options:
+  bundleIdPrefix: com.dexcomwidget
+  deploymentTarget:
+    macOS: "14.0"
+  xcodeVersion: "15.0"
+  generateEmptyDirectories: true
+
+settings:
+  base:
+    SWIFT_VERSION: "5.9"
+    MACOSX_DEPLOYMENT_TARGET: "14.0"
+    CODE_SIGN_STYLE: Automatic
+    CODE_SIGN_IDENTITY: "Apple Development"
+
+targets:
+  DexcomWidget:
+    type: application
+    platform: macOS
+    sources:
+      - path: DexcomWidget/App
+      - path: Shared
+      - path: DexcomWidget/Assets.xcassets
+    info:
+      path: DexcomWidget/Info.plist
+      properties:
+        CFBundleName: Glucose Widget
+        CFBundleDisplayName: Glucose Widget
+        LSUIElement: false
+    entitlements:
+      path: DexcomWidget/DexcomWidget.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups:
+          - group.com.dexcomwidget.shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dexcomwidget.app
+        PRODUCT_NAME: Glucose Widget
+        ASSETCATALOG_COMPILER_APPICON_NAME: AppIcon
+        CODE_SIGN_ENTITLEMENTS: DexcomWidget/DexcomWidget.entitlements
+        INFOPLIST_FILE: DexcomWidget/Info.plist
+    dependencies:
+      - target: GlucoseWidgetExtension
+        embed: true
+
+  GlucoseWidgetExtension:
+    type: app-extension
+    product: GlucoseWidgetExtension.appex
+    platform: macOS
+    sources:
+      - path: GlucoseWidget
+        excludes:
+          - "Assets.xcassets/WidgetBackground.colorset"
+      - path: Shared
+    info:
+      path: GlucoseWidget/Info.plist
+      properties:
+        NSExtension:
+          NSExtensionPointIdentifier: com.apple.widgetkit-extension
+    entitlements:
+      path: GlucoseWidget/GlucoseWidget.entitlements
+      properties:
+        com.apple.security.app-sandbox: true
+        com.apple.security.network.client: true
+        com.apple.security.application-groups:
+          - group.com.dexcomwidget.shared
+    settings:
+      base:
+        PRODUCT_BUNDLE_IDENTIFIER: com.dexcomwidget.app.widget
+        PRODUCT_NAME: GlucoseWidgetExtension
+        CODE_SIGN_ENTITLEMENTS: GlucoseWidget/GlucoseWidget.entitlements
+        INFOPLIST_FILE: GlucoseWidget/Info.plist
+        LD_RUNPATH_SEARCH_PATHS: "$(inherited) @executable_path/../Frameworks @executable_path/../../../../Frameworks"
