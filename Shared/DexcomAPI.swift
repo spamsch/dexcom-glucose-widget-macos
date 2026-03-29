@@ -94,7 +94,8 @@ actor DexcomAPI {
     }
 
     private func fetchLatestReading() async throws -> GlucoseReading {
-        let readings = try await fetchGlucoseReadings(minutes: 10, maxCount: 1)
+        // Use 1440 minutes (24h) window to find the most recent reading
+        let readings = try await fetchGlucoseReadings(minutes: 1440, maxCount: 1)
         guard let reading = readings.first else {
             throw DexcomAPIError.noData
         }

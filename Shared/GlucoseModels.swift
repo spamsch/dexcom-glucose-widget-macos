@@ -13,6 +13,13 @@ struct GlucoseReading: Codable, Identifiable {
         case timestamp = "WT"
     }
 
+    // Dexcom API returns trend as a string like "Flat", "SingleUp", etc.
+    private static let trendDirections: [String: Int] = [
+        "None": 0, "DoubleUp": 1, "SingleUp": 2, "FortyFiveUp": 3,
+        "Flat": 4, "FortyFiveDown": 5, "SingleDown": 6, "DoubleDown": 7,
+        "NotComputable": 8, "RateOutOfRange": 9
+    ]
+
     init(value: Int, trend: Int, timestamp: Date) {
         self.value = value
         self.trend = trend
@@ -22,7 +29,15 @@ struct GlucoseReading: Codable, Identifiable {
     init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         value = try container.decode(Int.self, forKey: .value)
-        trend = try container.decode(Int.self, forKey: .trend)
+
+        // Trend can be a string ("Flat") or an int (4) depending on context
+        if let trendString = try? container.decode(String.self, forKey: .trend) {
+            trend = GlucoseReading.trendDirections[trendString] ?? 0
+        } else if let trendInt = try? container.decode(Int.self, forKey: .trend) {
+            trend = trendInt
+        } else {
+            trend = 0
+        }
 
         let wtString = try container.decode(String.self, forKey: .timestamp)
         timestamp = GlucoseReading.parseDate(from: wtString)
@@ -37,10 +52,22 @@ struct GlucoseReading: Codable, Identifiable {
     }
 
     private static func parseDate(from wtString: String) -> Date {
-        // Format: /Date(1698765432000)/
-        let pattern = /\/Date\((-?\d+)\)\//
-        if let match = wtString.firstMatch(of: pattern),
-           let ms = Double(match.1) {
+        // Format: /Date(1698765432000)/  or  /Date(1698765432000+0000)/
+        guard let startRange = wtString.range(of: "("),
+              let endRange = wtString.range(of: ")") else {
+            return Date()
+        }
+        let numberStr = wtString[startRange.upperBound..<endRange.lowerBound]
+        // Handle timezone offset like /Date(1698765432000+0200)/
+        let msString: String
+        if let plusRange = numberStr.range(of: "+") {
+            msString = String(numberStr[numberStr.startIndex..<plusRange.lowerBound])
+        } else if let minusIdx = numberStr.lastIndex(of: "-"), minusIdx != numberStr.startIndex {
+            msString = String(numberStr[numberStr.startIndex..<minusIdx])
+        } else {
+            msString = String(numberStr)
+        }
+        if let ms = Double(msString) {
             return Date(timeIntervalSince1970: ms / 1000.0)
         }
         return Date()
@@ -179,6 +206,33 @@ enum GlucoseRange {
         case .inRange: return "IN RANGE"
         case .high: return "HIGH"
         case .urgentHigh: return "URGENT HIGH"
+        }
+    }
+
+    /// Bright, vivid accent color for widget use (needs to pop on dark backgrounds)
+    var widgetAccent: Color {
+        switch self {
+        case .urgentLow: return Color(red: 1.0, green: 0.25, blue: 0.25)
+        case .low: return Color(red: 1.0, green: 0.6, blue: 0.15)
+        case .inRange: return Color(red: 0.2, green: 0.85, blue: 0.5)
+        case .high: return Color(red: 1.0, green: 0.6, blue: 0.15)
+        case .urgentHigh: return Color(red: 1.0, green: 0.25, blue: 0.25)
+        }
+    }
+
+    /// Rich background gradient for widgets
+    var widgetGradient: [Color] {
+        switch self {
+        case .urgentLow:
+            return [Color(red: 0.35, green: 0.05, blue: 0.05), Color(red: 0.2, green: 0.02, blue: 0.05)]
+        case .low:
+            return [Color(red: 0.3, green: 0.18, blue: 0.02), Color(red: 0.18, green: 0.1, blue: 0.02)]
+        case .inRange:
+            return [Color(red: 0.04, green: 0.18, blue: 0.1), Color(red: 0.02, green: 0.12, blue: 0.08)]
+        case .high:
+            return [Color(red: 0.3, green: 0.18, blue: 0.02), Color(red: 0.18, green: 0.1, blue: 0.02)]
+        case .urgentHigh:
+            return [Color(red: 0.35, green: 0.05, blue: 0.05), Color(red: 0.2, green: 0.02, blue: 0.05)]
         }
     }
 }

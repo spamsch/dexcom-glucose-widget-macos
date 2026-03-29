@@ -5,6 +5,32 @@ options:
     macOS: "14.0"
   xcodeVersion: "15.0"
   generateEmptyDirectories: true
+  createIntermediateGroups: true
+
+schemes:
+  DexcomWidget:
+    build:
+      targets:
+        DexcomWidget: all
+        GlucoseWidgetExtension: all
+    run:
+      config: Debug
+      executable: DexcomWidget
+    profile:
+      config: Release
+    analyze:
+      config: Debug
+    archive:
+      config: Release
+  GlucoseWidgetExtension:
+    build:
+      targets:
+        GlucoseWidgetExtension: all
+        DexcomWidget: all
+    run:
+      config: Debug
+      executable: DexcomWidget
+      askForAppToLaunch: true
 
 settings:
   base:
@@ -12,6 +38,7 @@ settings:
     MACOSX_DEPLOYMENT_TARGET: "14.0"
     CODE_SIGN_STYLE: Automatic
     CODE_SIGN_IDENTITY: "Apple Development"
+    DEVELOPMENT_TEAM: 9Q8H55X5XQ
 
 targets:
   DexcomWidget:

@@ -3,6 +3,8 @@ import Charts
 
 struct DashboardView: View {
     @EnvironmentObject var appState: AppState
+    @State private var showSettings = false
+    @State private var selectedDate: Date?
 
     var body: some View {
         VStack(spacing: 0) {
@@ -23,9 +25,9 @@ struct DashboardView: View {
                 .foregroundStyle(.secondary)
 
                 Button {
-                    appState.logout()
+                    showSettings = true
                 } label: {
-                    Image(systemName: "rectangle.portrait.and.arrow.right")
+                    Image(systemName: "gearshape")
                         .font(.system(size: 12))
                 }
                 .buttonStyle(.plain)
@@ -70,6 +72,10 @@ struct DashboardView: View {
             if appState.currentReading == nil {
                 await appState.refresh()
             }
+        }
+        .sheet(isPresented: $showSettings) {
+            SettingsView()
+                .environmentObject(appState)
         }
     }
 
@@ -174,6 +180,14 @@ struct DashboardView: View {
                 .font(.system(size: 13, weight: .semibold))
                 .foregroundStyle(.secondary)
 
+            // Tooltip for selected reading
+            if let selectedDate,
+               let selected = sortedReadings.min(by: {
+                   abs($0.timestamp.timeIntervalSince(selectedDate)) < abs($1.timestamp.timeIntervalSince(selectedDate))
+               }) {
+                selectedReadingTooltip(selected, low: low, high: high)
+            }
+
             glucoseChart(sortedReadings: sortedReadings, low: low, high: high)
                 .frame(height: 200)
         }
@@ -181,6 +195,37 @@ struct DashboardView: View {
         .background {
             RoundedRectangle(cornerRadius: 16)
                 .fill(Color(nsColor: .controlBackgroundColor))
+        }
+    }
+
+    private func selectedReadingTooltip(_ reading: GlucoseReading, low: Double, high: Double) -> some View {
+        let range = reading.glucoseRange(low: low, high: high)
+        let useMmol = GlucoseStore.shared.useMmol
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+
+        return HStack(spacing: 12) {
+            Circle()
+                .fill(range.color)
+                .frame(width: 8, height: 8)
+            Text(reading.displayValue(useMmol: useMmol))
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+            Text(reading.displayUnit(useMmol: useMmol))
+                .font(.system(size: 11))
+                .foregroundStyle(.secondary)
+            Text(reading.trendArrow)
+                .font(.system(size: 14))
+            Spacer()
+            Text(formatter.string(from: reading.timestamp))
+                .font(.system(size: 11, design: .monospaced))
+                .foregroundStyle(.secondary)
+        }
+        .padding(.horizontal, 12)
+        .padding(.vertical, 8)
+        .background {
+            RoundedRectangle(cornerRadius: 8)
+                .fill(Color(nsColor: .controlBackgroundColor))
+                .shadow(color: .black.opacity(0.1), radius: 4, y: 2)
         }
     }
 
@@ -211,6 +256,12 @@ struct DashboardView: View {
                 .symbolSize(30)
             }
 
+            if let selectedDate {
+                RuleMark(x: .value("Selected", selectedDate))
+                    .foregroundStyle(.white.opacity(0.3))
+                    .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
+            }
+
             RuleMark(y: .value("Low", low))
                 .foregroundStyle(.orange.opacity(0.4))
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
@@ -220,5 +271,6 @@ struct DashboardView: View {
                 .lineStyle(StrokeStyle(lineWidth: 1, dash: [4, 4]))
         }
         .chartYScale(domain: 40...300)
+        .chartXSelection(value: $selectedDate)
     }
 }

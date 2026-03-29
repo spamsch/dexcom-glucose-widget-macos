@@ -87,17 +87,18 @@ struct GlucoseWidgetSmallView: View {
 
     private func readingView(_ reading: GlucoseReading) -> some View {
         let range = reading.glucoseRange(low: entry.lowThreshold, high: entry.highThreshold)
+        let accent = range.widgetAccent
 
         return VStack(spacing: 6) {
             // Range indicator dot
             HStack(spacing: 4) {
                 Circle()
-                    .fill(range.color)
+                    .fill(accent)
                     .frame(width: 8, height: 8)
                 Text(range.label)
                     .font(.system(size: 9, weight: .bold))
                     .tracking(0.5)
-                    .foregroundStyle(range.color)
+                    .foregroundColor(accent)
                 Spacer()
             }
 
@@ -108,12 +109,12 @@ struct GlucoseWidgetSmallView: View {
                 Text(reading.displayValue(useMmol: entry.useMmol))
                     .font(.system(size: 42, weight: .bold, design: .rounded))
                     .minimumScaleFactor(0.6)
-                    .foregroundStyle(.primary)
+                    .foregroundColor(.white)
 
                 VStack(spacing: 2) {
                     Image(systemName: reading.trendSFSymbol)
                         .font(.system(size: 16, weight: .bold))
-                        .foregroundStyle(range.color)
+                        .foregroundColor(accent)
                 }
             }
 
@@ -123,20 +124,23 @@ struct GlucoseWidgetSmallView: View {
             HStack {
                 Text(reading.displayUnit(useMmol: entry.useMmol))
                     .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(.white.opacity(0.5))
                 Spacer()
                 Text(reading.timeAgoText)
                     .font(.system(size: 10))
-                    .foregroundStyle(.secondary)
+                    .foregroundColor(.white.opacity(0.5))
             }
         }
         .padding(14)
         .containerBackground(for: .widget) {
-            LinearGradient(
-                colors: range.gradient.map { $0.opacity(0.2) },
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            ZStack {
+                Color.black
+                LinearGradient(
+                    colors: range.widgetGradient,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
         }
     }
 
@@ -181,6 +185,7 @@ struct GlucoseWidgetMediumView: View {
 
     private func readingView(_ reading: GlucoseReading) -> some View {
         let range = reading.glucoseRange(low: entry.lowThreshold, high: entry.highThreshold)
+        let accent = range.widgetAccent
         let store = GlucoseStore.shared
         let recentReadings = store.loadReadings().sorted { $0.timestamp < $1.timestamp }
 
@@ -189,30 +194,31 @@ struct GlucoseWidgetMediumView: View {
             VStack(spacing: 6) {
                 HStack(spacing: 4) {
                     Circle()
-                        .fill(range.color)
+                        .fill(accent)
                         .frame(width: 8, height: 8)
                     Text(range.label)
                         .font(.system(size: 9, weight: .bold))
                         .tracking(0.5)
-                        .foregroundStyle(range.color)
+                        .foregroundColor(accent)
                 }
 
                 Text(reading.displayValue(useMmol: entry.useMmol))
                     .font(.system(size: 48, weight: .bold, design: .rounded))
                     .minimumScaleFactor(0.5)
+                    .foregroundColor(.white)
 
                 HStack(spacing: 4) {
                     Image(systemName: reading.trendSFSymbol)
                         .font(.system(size: 14, weight: .bold))
-                        .foregroundStyle(range.color)
+                        .foregroundColor(accent)
                     Text(reading.trendDescription)
                         .font(.system(size: 11))
-                        .foregroundStyle(.secondary)
+                        .foregroundColor(.white.opacity(0.6))
                 }
 
                 Text(reading.timeAgoText)
                     .font(.system(size: 10))
-                    .foregroundStyle(.tertiary)
+                    .foregroundColor(.white.opacity(0.4))
             }
             .frame(width: 130)
 
@@ -225,11 +231,14 @@ struct GlucoseWidgetMediumView: View {
         }
         .padding(14)
         .containerBackground(for: .widget) {
-            LinearGradient(
-                colors: range.gradient.map { $0.opacity(0.15) },
-                startPoint: .topLeading,
-                endPoint: .bottomTrailing
-            )
+            ZStack {
+                Color.black
+                LinearGradient(
+                    colors: range.widgetGradient,
+                    startPoint: .topLeading,
+                    endPoint: .bottomTrailing
+                )
+            }
         }
     }
 
@@ -246,7 +255,7 @@ struct GlucoseWidgetMediumView: View {
             let lowY = size.height * (1 - (entry.lowThreshold - minVal) / valueRange)
             let highY = size.height * (1 - (entry.highThreshold - minVal) / valueRange)
             let bandRect = CGRect(x: 0, y: highY, width: size.width, height: lowY - highY)
-            context.fill(Path(bandRect), with: .color(.green.opacity(0.1)))
+            context.fill(Path(bandRect), with: .color(range.widgetAccent.opacity(0.15)))
 
             // Draw line
             var path = Path()
@@ -259,14 +268,14 @@ struct GlucoseWidgetMediumView: View {
                     path.addLine(to: CGPoint(x: x, y: y))
                 }
             }
-            context.stroke(path, with: .color(range.color), lineWidth: 2)
+            context.stroke(path, with: .color(range.widgetAccent), lineWidth: 2.5)
 
             // Draw last point
             if let lastVal = values.last {
                 let x = size.width
                 let y = size.height * (1 - (lastVal - minVal) / valueRange)
-                let dot = Path(ellipseIn: CGRect(x: x - 4, y: y - 4, width: 8, height: 8))
-                context.fill(dot, with: .color(range.color))
+                let dot = Path(ellipseIn: CGRect(x: x - 5, y: y - 5, width: 10, height: 10))
+                context.fill(dot, with: .color(range.widgetAccent))
             }
         }
     }
