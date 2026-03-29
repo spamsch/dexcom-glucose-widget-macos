@@ -37,6 +37,7 @@ class AppState: ObservableObject {
     @Published var isConfigured: Bool
     @Published var currentReading: GlucoseReading?
     @Published var recentReadings: [GlucoseReading] = []
+    @Published var dailyReadings: [GlucoseReading] = []
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var notificationsEnabled: Bool
@@ -71,10 +72,12 @@ class AppState: ObservableObject {
                 store.saveReading(reading)
                 currentReading = reading
 
-                let readings = try await api.fetchReadings(minutes: 180, maxCount: 36)
-                if !readings.isEmpty {
-                    recentReadings = readings
-                    store.saveReadings(readings)
+                let allReadings = try await api.fetchReadings(minutes: 1440, maxCount: 288)
+                if !allReadings.isEmpty {
+                    dailyReadings = allReadings
+                    let threeHoursAgo = Date().addingTimeInterval(-3 * 3600)
+                    recentReadings = allReadings.filter { $0.timestamp >= threeHoursAgo }
+                    store.saveReadings(recentReadings)
                 }
             } catch {
                 errorMessage = error.localizedDescription
@@ -85,6 +88,7 @@ class AppState: ObservableObject {
         isLoading = false
     }
 
+    /// Light refresh: only fetches the latest reading. Called every 5 minutes by the timer.
     func refresh() async {
         guard let api = store.createAPI() else { return }
         isLoading = true
@@ -93,9 +97,39 @@ class AppState: ObservableObject {
             currentReading = reading
             store.saveReading(reading)
 
-            let readings = try await api.fetchReadings(minutes: 180, maxCount: 36)
-            recentReadings = readings
-            store.saveReadings(readings)
+            // Append to existing daily readings (avoid re-fetching all 288)
+            if !dailyReadings.contains(where: { $0.timestamp == reading.timestamp }) {
+                dailyReadings.insert(reading, at: 0)
+                // Trim readings older than 24h
+                let cutoff = Date().addingTimeInterval(-24 * 3600)
+                dailyReadings.removeAll { $0.timestamp < cutoff }
+            }
+            let threeHoursAgo = Date().addingTimeInterval(-3 * 3600)
+            recentReadings = dailyReadings.filter { $0.timestamp >= threeHoursAgo }
+            store.saveReadings(recentReadings)
+
+            checkAndNotify(reading)
+            errorMessage = nil
+        } catch {
+            errorMessage = error.localizedDescription
+        }
+        isLoading = false
+    }
+
+    /// Full refresh: fetches all 24h of data. Called on launch and manual refresh.
+    func fullRefresh() async {
+        guard let api = store.createAPI() else { return }
+        isLoading = true
+        do {
+            let reading = try await api.fetchCurrentReading()
+            currentReading = reading
+            store.saveReading(reading)
+
+            let allReadings = try await api.fetchReadings(minutes: 1440, maxCount: 288)
+            dailyReadings = allReadings
+            let threeHoursAgo = Date().addingTimeInterval(-3 * 3600)
+            recentReadings = allReadings.filter { $0.timestamp >= threeHoursAgo }
+            store.saveReadings(recentReadings)
 
             checkAndNotify(reading)
             errorMessage = nil

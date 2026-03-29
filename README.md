@@ -2,6 +2,8 @@
 
 A native macOS app and widget that displays real-time glucose readings from the Dexcom Share API. Built with SwiftUI and WidgetKit.
 
+![Dashboard](screenshot.png)
+
 ## Features
 
 - **Desktop widgets** in small and medium sizes, color-coded by glucose range (green for in range, orange for low/high, red for urgent)

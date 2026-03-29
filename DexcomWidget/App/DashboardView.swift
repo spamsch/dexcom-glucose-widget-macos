@@ -14,7 +14,7 @@ struct DashboardView: View {
                     .font(.system(size: 14, weight: .semibold))
                 Spacer()
                 Button {
-                    Task { await appState.refresh() }
+                    Task { await appState.fullRefresh() }
                 } label: {
                     Image(systemName: "arrow.clockwise")
                         .font(.system(size: 12))
@@ -47,6 +47,11 @@ struct DashboardView: View {
                         noDataCard
                     }
 
+                    // Time in range
+                    if appState.dailyReadings.count >= 2 {
+                        timeInRangeCard
+                    }
+
                     // Chart
                     if !appState.recentReadings.isEmpty {
                         chartCard
@@ -69,9 +74,7 @@ struct DashboardView: View {
         }
         .task {
             appState.startRefreshTimer()
-            if appState.currentReading == nil {
-                await appState.refresh()
-            }
+            await appState.fullRefresh()
         }
         .sheet(isPresented: $showSettings) {
             SettingsView()
@@ -165,6 +168,95 @@ struct DashboardView: View {
         .background {
             RoundedRectangle(cornerRadius: 20)
                 .fill(Color(nsColor: .controlBackgroundColor))
+        }
+    }
+
+    // MARK: - Time in Range
+
+    private var timeInRangeCard: some View {
+        let readings = appState.dailyReadings
+        let low = GlucoseStore.shared.lowThreshold
+        let high = GlucoseStore.shared.highThreshold
+        let total = Double(readings.count)
+
+        let urgentLowCount = readings.filter { Double($0.value) < DexcomConstants.urgentLow }.count
+        let lowCount = readings.filter { Double($0.value) >= DexcomConstants.urgentLow && Double($0.value) < low }.count
+        let inRangeCount = readings.filter { Double($0.value) >= low && Double($0.value) <= high }.count
+        let highCount = readings.filter { Double($0.value) > high && Double($0.value) <= DexcomConstants.urgentHigh }.count
+        let urgentHighCount = readings.filter { Double($0.value) > DexcomConstants.urgentHigh }.count
+
+        let pctInRange = total > 0 ? Double(inRangeCount) / total * 100 : 0
+        let pctLow = total > 0 ? Double(lowCount + urgentLowCount) / total * 100 : 0
+        let pctHigh = total > 0 ? Double(highCount + urgentHighCount) / total * 100 : 0
+
+        let segments: [(String, Double, Color)] = [
+            ("Urgent Low", Double(urgentLowCount) / total, GlucoseRange.urgentLow.color),
+            ("Low", Double(lowCount) / total, GlucoseRange.low.color),
+            ("In Range", Double(inRangeCount) / total, GlucoseRange.inRange.color),
+            ("High", Double(highCount) / total, GlucoseRange.high.color),
+            ("Urgent High", Double(urgentHighCount) / total, GlucoseRange.urgentHigh.color),
+        ]
+
+        let avgValue = total > 0 ? readings.map(\.value).reduce(0, +) / Int(total) : 0
+        let useMmol = GlucoseStore.shared.useMmol
+        let avgDisplay = useMmol
+            ? String(format: "%.1f", Double(avgValue) * DexcomConstants.mmolConversionFactor)
+            : "\(avgValue)"
+        let unit = useMmol ? "mmol/L" : "mg/dL"
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Text("Time in Range")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                Text("Last 24h (\(readings.count) readings)")
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
+
+            // Stacked bar
+            GeometryReader { geo in
+                HStack(spacing: 1.5) {
+                    ForEach(segments.indices, id: \.self) { i in
+                        let (_, fraction, color) = segments[i]
+                        if fraction > 0 {
+                            RoundedRectangle(cornerRadius: 4)
+                                .fill(color)
+                                .frame(width: max(4, geo.size.width * fraction))
+                        }
+                    }
+                }
+            }
+            .frame(height: 18)
+            .clipShape(RoundedRectangle(cornerRadius: 5))
+
+            // Stats row
+            HStack(spacing: 0) {
+                statItem(value: String(format: "%.0f%%", pctInRange), label: "In Range", color: .green)
+                Spacer()
+                statItem(value: String(format: "%.0f%%", pctLow), label: "Below", color: .orange)
+                Spacer()
+                statItem(value: String(format: "%.0f%%", pctHigh), label: "Above", color: .orange)
+                Spacer()
+                statItem(value: "\(avgDisplay) \(unit)", label: "Average", color: .primary)
+            }
+        }
+        .padding(20)
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        }
+    }
+
+    private func statItem(value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
         }
     }
 
