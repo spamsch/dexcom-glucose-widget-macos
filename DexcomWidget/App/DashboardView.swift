@@ -175,8 +175,8 @@ struct DashboardView: View {
 
     private var timeInRangeCard: some View {
         let readings = appState.dailyReadings
-        let low = GlucoseStore.shared.lowThreshold
-        let high = GlucoseStore.shared.highThreshold
+        let low = DexcomConstants.defaultLowThreshold
+        let high = DexcomConstants.defaultHighThreshold
         let total = Double(readings.count)
 
         let urgentLowCount = readings.filter { Double($0.value) < DexcomConstants.urgentLow }.count
