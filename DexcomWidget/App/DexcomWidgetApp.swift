@@ -1,5 +1,6 @@
 import SwiftUI
 import UserNotifications
+import GlookoReader
 
 /// Allows notifications to display while the app is in the foreground.
 class NotificationDelegate: NSObject, UNUserNotificationCenterDelegate {
@@ -25,11 +26,23 @@ struct DexcomWidgetApp: App {
         WindowGroup {
             ContentView()
                 .environmentObject(appState)
-                .frame(minWidth: 480, minHeight: 560)
+                .frame(minWidth: 480, minHeight: 640)
         }
         .windowStyle(.hiddenTitleBar)
-        .defaultSize(width: 480, height: 560)
+        .defaultSize(width: 480, height: 700)
     }
+}
+
+struct GlookoStats {
+    var pumpMode: String
+    var autoPercentage: Double
+    var totalInsulinPerDay: Double
+    var basalPercentage: Double
+    var bolusPercentage: Double
+    var carbsPerDay: Double
+    var iob: Double?
+    var lastSync: Date?
+    var lastUpdated: Date
 }
 
 @MainActor
@@ -41,9 +54,12 @@ class AppState: ObservableObject {
     @Published var isLoading = false
     @Published var errorMessage: String?
     @Published var notificationsEnabled: Bool
+    @Published var glookoStats: GlookoStats?
+    @Published var glookoError: String?
 
     private let store = GlucoseStore.shared
     private var refreshTimer: Timer?
+    private var glookoClient: GlookoClient?
 
     init() {
         isConfigured = store.isConfigured
@@ -137,6 +153,8 @@ class AppState: ObservableObject {
             errorMessage = error.localizedDescription
         }
         isLoading = false
+
+        await refreshGlooko()
     }
 
     private func checkAndNotify(_ reading: GlucoseReading) {
@@ -146,7 +164,7 @@ class AppState: ObservableObject {
         let notifyHigh = defaults.object(forKey: "notify_high") as? Bool ?? true
         let urgentOnly = defaults.bool(forKey: "notify_urgent_only")
 
-        let range = reading.glucoseRange(low: store.lowThreshold, high: store.highThreshold)
+        let range = reading.glucoseRange()
         let useMmol = store.useMmol
 
         var shouldNotify = false
@@ -199,11 +217,75 @@ class AppState: ObservableObject {
         UNUserNotificationCenter.current().add(request)
     }
 
+    // MARK: - Glooko
+
+    func refreshGlooko() async {
+        guard store.isGlookoConfigured,
+              let email = store.glookoUsername,
+              let password = KeychainHelper.load(for: "glooko_password") else {
+            glookoStats = nil
+            return
+        }
+
+        do {
+            // Always create a fresh client to avoid stale sessions
+            let client = GlookoClient(email: email, password: password, sessionTimeoutMinutes: 4)
+            glookoClient = client
+            try await client.authenticate()
+
+            // Fetch statistics and graph data in parallel
+            async let statsData = client.getStatistics(dateRange: .lastDays(1))
+            async let graphData = client.getGraphData(dateRange: .lastDays(1))
+            async let deviceData = client.getDeviceSettings()
+
+            let stats = try await statsData
+            let graph = try await graphData
+            let devices = try await deviceData
+
+            var pumpStats: PumpStatistics?
+            if let stats { pumpStats = parsePumpMode(from: stats) }
+
+            var iob: Double?
+            var lastDataTimestamp: Date?
+            if let graph {
+                iob = parseIOBFromBolus(from: graph)
+                let boluses = parseBolusEntries(from: graph)
+                lastDataTimestamp = boluses.map(\.timestamp).max()
+            }
+
+            var lastSync: Date?
+            if let devices {
+                let deviceList = parseDevices(from: devices)
+                lastSync = deviceList.compactMap(\.lastSync).max()
+            }
+            // Prefer device sync time, fall back to most recent bolus timestamp
+            let lastPumpUpdate = lastSync ?? lastDataTimestamp
+
+            glookoStats = GlookoStats(
+                pumpMode: pumpStats?.mode?.rawValue.capitalized ?? "Unknown",
+                autoPercentage: pumpStats?.autoPercentage ?? 0,
+                totalInsulinPerDay: pumpStats?.totalInsulinPerDay ?? 0,
+                basalPercentage: pumpStats?.basalPercentage ?? 0,
+                bolusPercentage: pumpStats?.bolusPercentage ?? 0,
+                carbsPerDay: pumpStats?.carbsPerDay ?? 0,
+                iob: iob,
+                lastSync: lastPumpUpdate,
+                lastUpdated: Date()
+            )
+            glookoError = nil
+        } catch {
+            glookoError = error.localizedDescription
+            // Keep stale stats visible, just show error
+        }
+    }
+
     func logout() {
         store.clearCredentials()
         isConfigured = false
         currentReading = nil
         recentReadings = []
+        glookoStats = nil
+        glookoClient = nil
         refreshTimer?.invalidate()
         refreshTimer = nil
     }

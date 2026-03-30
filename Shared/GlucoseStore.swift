@@ -89,6 +89,29 @@ final class GlucoseStore {
         return (try? decoder.decode([GlucoseReading].self, from: data)) ?? []
     }
 
+    // MARK: - Glooko Credentials
+
+    var glookoUsername: String? {
+        get { defaults.string(forKey: DexcomConstants.glookoUsernameKey) }
+        set { defaults.set(newValue, forKey: DexcomConstants.glookoUsernameKey) }
+    }
+
+    var isGlookoConfigured: Bool {
+        guard let user = glookoUsername, !user.isEmpty else { return false }
+        return KeychainHelper.load(for: "glooko_password") != nil
+    }
+
+    func saveGlookoCredentials(username: String, password: String) {
+        glookoUsername = username
+        KeychainHelper.save(password: password, for: "glooko_password")
+    }
+
+    func clearGlookoCredentials() {
+        glookoUsername = nil
+        KeychainHelper.delete(for: "glooko_password")
+        defaults.removeObject(forKey: "glooko_stats")
+    }
+
     // MARK: - API Client
 
     func createAPI() -> DexcomAPI? {

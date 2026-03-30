@@ -11,13 +11,30 @@ A native macOS app and widget that displays real-time glucose readings from the 
 - **Notifications** for low and high glucose, with configurable thresholds and an urgent-only mode
 - **Supports mg/dL and mmol/L** display units
 - **Secure credential storage** via macOS Keychain
+- **Glooko integration** (optional) — shows pump mode, insulin delivery, basal/bolus split, carbs, and last pod sync time
 - **Automatic refresh** every 5 minutes, matching the Dexcom CGM update interval
+
+## Install (pre-built)
+
+Download the latest `.zip` from the [Releases](https://github.com/spamsch/dexcom-glucose-widget-macos/releases) page, unzip it, and drag **Glucose Widget.app** to `/Applications`.
+
+Since the app is signed with a development certificate and not notarized by Apple, macOS Gatekeeper will block it on first launch. To open it:
+
+1. Right-click (or Control-click) on **Glucose Widget.app** and select **Open**.
+2. In the dialog that appears, click **Open** again to confirm.
+
+You only need to do this once — after that the app launches normally.
 
 ## Requirements
 
 - macOS 14.0 or later
-- Xcode 15+
 - A Dexcom Share account with sharing enabled
+
+### Building from source
+
+You also need:
+
+- Xcode 15+
 - An Apple Developer account (for code signing and App Group entitlements)
 
 ## Setup
@@ -56,6 +73,7 @@ To add the widget to your desktop, right-click the desktop, select "Edit Widgets
 Open settings via the gear icon in the top bar. From there you can:
 
 - Update your Dexcom credentials
+- Connect your Glooko account to see pump statistics
 - Set custom low/high glucose thresholds
 - Switch between mg/dL and mmol/L
 - Enable notifications with test buttons to verify they work

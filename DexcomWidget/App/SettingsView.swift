@@ -24,6 +24,11 @@ struct SettingsView: View {
     @State private var notifyOnHigh: Bool
     @State private var notifyOnUrgentOnly: Bool
 
+    // Glooko
+    @State private var glookoUsername: String
+    @State private var glookoPassword: String
+    @State private var showGlookoPassword = false
+
     // State
     @State private var isSaving = false
     @State private var saveMessage: String?
@@ -48,6 +53,8 @@ struct SettingsView: View {
         _lowThreshold = State(initialValue: store.lowThreshold)
         _highThreshold = State(initialValue: store.highThreshold)
         _useMmol = State(initialValue: store.useMmol)
+        _glookoUsername = State(initialValue: store.glookoUsername ?? "")
+        _glookoPassword = State(initialValue: KeychainHelper.load(for: "glooko_password") ?? "")
 
         let defaults = UserDefaults(suiteName: DexcomConstants.appGroupId) ?? .standard
         _notificationsEnabled = State(initialValue: defaults.bool(forKey: "notifications_enabled"))
@@ -80,6 +87,7 @@ struct SettingsView: View {
             ScrollView {
                 VStack(spacing: 24) {
                     accountSection
+                    glookoSection
                     thresholdSection
                     unitSection
                     notificationSection
@@ -183,6 +191,78 @@ struct SettingsView: View {
                     }
                     .pickerStyle(.segmented)
                     .frame(width: 180)
+                }
+            }
+        }
+    }
+
+    // MARK: - Glooko
+
+    private var glookoSection: some View {
+        settingsCard(title: "Glooko (Pump Data)", icon: "cross.case") {
+            VStack(spacing: 12) {
+                Text("Optional — connect to Glooko to see pump statistics like insulin delivery, pump mode, and IOB.")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+
+                LabeledField(label: "Glooko Email") {
+                    TextField("your@email.com", text: $glookoUsername)
+                        .textFieldStyle(.plain)
+                        .font(.system(size: 13))
+                        .padding(8)
+                        .background(Color(nsColor: .controlBackgroundColor))
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                        .overlay(
+                            RoundedRectangle(cornerRadius: 8)
+                                .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                        )
+                }
+
+                LabeledField(label: "Glooko Password") {
+                    HStack {
+                        if showGlookoPassword {
+                            TextField("Password", text: $glookoPassword)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 13))
+                        } else {
+                            SecureField("Password", text: $glookoPassword)
+                                .textFieldStyle(.plain)
+                                .font(.system(size: 13))
+                        }
+                        Button {
+                            showGlookoPassword.toggle()
+                        } label: {
+                            Image(systemName: showGlookoPassword ? "eye.slash" : "eye")
+                                .foregroundStyle(.secondary)
+                                .font(.system(size: 11))
+                        }
+                        .buttonStyle(.plain)
+                    }
+                    .padding(8)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                    .overlay(
+                        RoundedRectangle(cornerRadius: 8)
+                            .stroke(Color(nsColor: .separatorColor), lineWidth: 1)
+                    )
+                }
+
+                if store.isGlookoConfigured {
+                    Button {
+                        glookoUsername = ""
+                        glookoPassword = ""
+                        store.clearGlookoCredentials()
+                        saveMessage = "Glooko disconnected"
+                    } label: {
+                        HStack(spacing: 4) {
+                            Image(systemName: "xmark.circle")
+                            Text("Disconnect Glooko")
+                        }
+                        .font(.system(size: 11))
+                        .foregroundStyle(.red)
+                    }
+                    .buttonStyle(.plain)
                 }
             }
         }
@@ -398,6 +478,13 @@ struct SettingsView: View {
             store.saveCredentials(username: username, password: password, ous: isOUS)
         }
 
+        // Save Glooko credentials
+        if !glookoUsername.isEmpty && !glookoPassword.isEmpty {
+            store.saveGlookoCredentials(username: glookoUsername, password: glookoPassword)
+        } else if glookoUsername.isEmpty {
+            store.clearGlookoCredentials()
+        }
+
         // Save thresholds
         store.lowThreshold = lowThreshold
         store.highThreshold = highThreshold
@@ -419,10 +506,13 @@ struct SettingsView: View {
         }
         isSaving = false
 
-        // Only refresh data if credentials changed
-        if credentialsChanged {
-            Task {
+        // Refresh data if needed
+        Task {
+            if credentialsChanged {
                 await appState.refresh()
+            }
+            if store.isGlookoConfigured {
+                await appState.refreshGlooko()
             }
         }
 

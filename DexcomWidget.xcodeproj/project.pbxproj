@@ -27,6 +27,7 @@
 		C5553C31D32B962C88C28EE6 /* DexcomAPI.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9C1924066F442552C91F2CEE /* DexcomAPI.swift */; };
 		D69A6D361760DE2B1CC028F6 /* KeychainHelper.swift in Sources */ = {isa = PBXBuildFile; fileRef = C8D20DFB672B93CD9477D6D8 /* KeychainHelper.swift */; };
 		D903409CEEC3A1ABB044D0B2 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 552843F791760A6BE95688C2 /* Assets.xcassets */; };
+		D941FF46DAC651A42AB8F78E /* GlookoReader in Frameworks */ = {isa = PBXBuildFile; productRef = 31188BA9CF11FCB322B227F0 /* GlookoReader */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -73,6 +74,17 @@
 		F27787120DC0D4E5A6662F59 /* GlucoseWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = GlucoseWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
 		FF07C09D8B60DEC51A77F5F5 /* DashboardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = DashboardView.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		56D802557E5B97BFF349F29C /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				D941FF46DAC651A42AB8F78E /* GlookoReader in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
 		4129444AD14EF04D93678372 /* DexcomWidget */ = {
@@ -166,6 +178,7 @@
 			buildPhases = (
 				4999B13A2CB481ADDEF1E0ED /* Sources */,
 				5E91B2E94222BAB2FF6F38A2 /* Resources */,
+				56D802557E5B97BFF349F29C /* Frameworks */,
 				4E15D82B5805491806A68946 /* Embed Foundation Extensions */,
 			);
 			buildRules = (
@@ -175,6 +188,7 @@
 			);
 			name = DexcomWidget;
 			packageProductDependencies = (
+				31188BA9CF11FCB322B227F0 /* GlookoReader */,
 			);
 			productName = DexcomWidget;
 			productReference = B2C56326578B23840793A9C7 /* DexcomWidget.app */;
@@ -208,6 +222,9 @@
 			);
 			mainGroup = D11F978BD36166F2D724856B;
 			minimizedProjectReferenceProxies = 1;
+			packageReferences = (
+				087E1D6AD8DDBF472BA12783 /* XCRemoteSwiftPackageReference "glooko-reader-swift" */,
+			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = 6D6CD90C31B7F33A63AC1CF7 /* Products */;
 			projectDirPath = "";
@@ -497,6 +514,25 @@
 			defaultConfigurationName = Debug;
 		};
 /* End XCConfigurationList section */
+
+/* Begin XCRemoteSwiftPackageReference section */
+		087E1D6AD8DDBF472BA12783 /* XCRemoteSwiftPackageReference "glooko-reader-swift" */ = {
+			isa = XCRemoteSwiftPackageReference;
+			repositoryURL = "https://github.com/spamsch/glooko-reader-swift";
+			requirement = {
+				branch = main;
+				kind = branch;
+			};
+		};
+/* End XCRemoteSwiftPackageReference section */
+
+/* Begin XCSwiftPackageProductDependency section */
+		31188BA9CF11FCB322B227F0 /* GlookoReader */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = 087E1D6AD8DDBF472BA12783 /* XCRemoteSwiftPackageReference "glooko-reader-swift" */;
+			productName = GlookoReader;
+		};
+/* End XCSwiftPackageProductDependency section */
 	};
 	rootObject = 6F993CBC8FA76B99EC54ADE0 /* Project object */;
 }

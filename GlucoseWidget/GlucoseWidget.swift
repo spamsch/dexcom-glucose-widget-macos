@@ -86,7 +86,7 @@ struct GlucoseWidgetSmallView: View {
     }
 
     private func readingView(_ reading: GlucoseReading) -> some View {
-        let range = reading.glucoseRange(low: entry.lowThreshold, high: entry.highThreshold)
+        let range = reading.glucoseRange()
         let accent = range.widgetAccent
 
         return VStack(spacing: 6) {
@@ -184,10 +184,10 @@ struct GlucoseWidgetMediumView: View {
     }
 
     private func readingView(_ reading: GlucoseReading) -> some View {
-        let range = reading.glucoseRange(low: entry.lowThreshold, high: entry.highThreshold)
+        let range = reading.glucoseRange()
         let accent = range.widgetAccent
         let store = GlucoseStore.shared
-        let recentReadings = store.loadReadings().sorted { $0.timestamp < $1.timestamp }
+        let recentReadings = Array(store.loadReadings().sorted { $0.timestamp < $1.timestamp }.suffix(15))
 
         return HStack(spacing: 16) {
             // Left: glucose value
@@ -252,8 +252,8 @@ struct GlucoseWidgetMediumView: View {
             guard valueRange > 0, values.count >= 2 else { return }
 
             // Draw target range band
-            let lowY = size.height * (1 - (entry.lowThreshold - minVal) / valueRange)
-            let highY = size.height * (1 - (entry.highThreshold - minVal) / valueRange)
+            let lowY = size.height * (1 - (DexcomConstants.defaultLowThreshold - minVal) / valueRange)
+            let highY = size.height * (1 - (DexcomConstants.defaultHighThreshold - minVal) / valueRange)
             let bandRect = CGRect(x: 0, y: highY, width: size.width, height: lowY - highY)
             context.fill(Path(bandRect), with: .color(range.widgetAccent.opacity(0.15)))
 

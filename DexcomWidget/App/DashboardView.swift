@@ -52,6 +52,11 @@ struct DashboardView: View {
                         timeInRangeCard
                     }
 
+                    // Glooko pump stats
+                    if let stats = appState.glookoStats {
+                        glookoCard(stats)
+                    }
+
                     // Chart
                     if !appState.recentReadings.isEmpty {
                         chartCard
@@ -85,10 +90,7 @@ struct DashboardView: View {
     // MARK: - Glucose Card
 
     private func glucoseCard(_ reading: GlucoseReading) -> some View {
-        let range = reading.glucoseRange(
-            low: GlucoseStore.shared.lowThreshold,
-            high: GlucoseStore.shared.highThreshold
-        )
+        let range = reading.glucoseRange()
         let useMmol = GlucoseStore.shared.useMmol
 
         return VStack(spacing: 16) {
@@ -260,12 +262,132 @@ struct DashboardView: View {
         }
     }
 
+    // MARK: - Glooko
+
+    private func glookoCard(_ stats: GlookoStats) -> some View {
+        let formatter = DateFormatter()
+        formatter.dateFormat = "HH:mm"
+
+        return VStack(alignment: .leading, spacing: 14) {
+            HStack {
+                Label("Pump Stats", systemImage: "cross.case")
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let syncDate = stats.lastSync {
+                    Text("Pod synced \(relativeTime(syncDate))")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
+                }
+            }
+
+            // Pump mode bar
+            HStack(spacing: 8) {
+                HStack(spacing: 4) {
+                    Circle()
+                        .fill(stats.pumpMode == "Auto" ? .green : .orange)
+                        .frame(width: 8, height: 8)
+                    Text(stats.pumpMode)
+                        .font(.system(size: 13, weight: .semibold))
+                }
+
+                if stats.autoPercentage > 0 {
+                    Text("\(Int(stats.autoPercentage))% auto")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                }
+
+                Spacer()
+
+                if let iob = stats.iob, iob > 0 {
+                    HStack(spacing: 4) {
+                        Text(String(format: "%.1f U", iob))
+                            .font(.system(size: 13, weight: .bold, design: .rounded))
+                            .foregroundStyle(.blue)
+                        Text("IOB")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+            }
+
+            Divider()
+
+            // Stats grid
+            HStack(spacing: 0) {
+                glookoStat(
+                    value: String(format: "%.0f U", stats.totalInsulinPerDay),
+                    label: "Insulin/Day",
+                    color: .blue
+                )
+                Spacer()
+                glookoStat(
+                    value: "\(Int(stats.basalPercentage))%",
+                    label: "Basal",
+                    color: .cyan
+                )
+                Spacer()
+                glookoStat(
+                    value: "\(Int(stats.bolusPercentage))%",
+                    label: "Bolus",
+                    color: .indigo
+                )
+                Spacer()
+                glookoStat(
+                    value: stats.carbsPerDay > 0 ? "\(Int(stats.carbsPerDay))g" : "—",
+                    label: "Carbs/Day",
+                    color: .orange
+                )
+            }
+
+            if let error = appState.glookoError {
+                HStack(spacing: 4) {
+                    Image(systemName: "exclamationmark.triangle")
+                        .font(.system(size: 9))
+                    Text(error)
+                        .font(.system(size: 10))
+                        .lineLimit(1)
+                }
+                .foregroundStyle(.orange)
+            }
+        }
+        .padding(20)
+        .background {
+            RoundedRectangle(cornerRadius: 16)
+                .fill(Color(nsColor: .controlBackgroundColor))
+        }
+    }
+
+    private func relativeTime(_ date: Date) -> String {
+        let mins = Int(Date().timeIntervalSince(date) / 60)
+        if mins < 1 { return "just now" }
+        if mins == 1 { return "1 min ago" }
+        if mins < 60 { return "\(mins) min ago" }
+        let hours = mins / 60
+        if hours == 1 { return "1 hr ago" }
+        if hours < 24 { return "\(hours) hrs ago" }
+        let formatter = DateFormatter()
+        formatter.dateFormat = "dd. MMM HH:mm"
+        return formatter.string(from: date)
+    }
+
+    private func glookoStat(value: String, label: String, color: Color) -> some View {
+        VStack(spacing: 2) {
+            Text(value)
+                .font(.system(size: 14, weight: .bold, design: .rounded))
+                .foregroundStyle(color)
+            Text(label)
+                .font(.system(size: 10))
+                .foregroundStyle(.secondary)
+        }
+    }
+
     // MARK: - Chart
 
     private var chartCard: some View {
         let sortedReadings = appState.recentReadings.sorted { $0.timestamp < $1.timestamp }
-        let low = GlucoseStore.shared.lowThreshold
-        let high = GlucoseStore.shared.highThreshold
+        let low = DexcomConstants.defaultLowThreshold
+        let high = DexcomConstants.defaultHighThreshold
 
         return VStack(alignment: .leading, spacing: 12) {
             Text("Last 3 Hours")

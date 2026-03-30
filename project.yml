@@ -32,6 +32,11 @@ schemes:
       executable: DexcomWidget
       askForAppToLaunch: true
 
+packages:
+  GlookoReader:
+    url: https://github.com/spamsch/glooko-reader-swift
+    branch: main
+
 settings:
   base:
     SWIFT_VERSION: "5.9"
@@ -71,6 +76,7 @@ targets:
     dependencies:
       - target: GlucoseWidgetExtension
         embed: true
+      - package: GlookoReader
 
   GlucoseWidgetExtension:
     type: app-extension

@@ -31,4 +31,7 @@ enum DexcomConstants {
     static let urgentHigh: Double = 250
 
     static let mmolConversionFactor: Double = 0.0555
+
+    // Glooko
+    static let glookoUsernameKey = "glooko_username"
 }
